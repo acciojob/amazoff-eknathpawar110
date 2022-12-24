@@ -6,107 +6,97 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
 import javax.servlet.http.Part;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 
-@org.springframework.stereotype.Repository
+@Repository
+@Component
 public class DelivaeryPartnerRepository {
 
-    HashMap<String,Order> orderMap = new HashMap<>(); // (orderId,orderObject)
-    HashMap<String,DeliveryPartner> partnerMap = new HashMap<>(); // (deliverPartnerId,deliverPartnerObject)
-
-    HashMap<DeliveryPartner, List<Order>> pairMap = new HashMap<>(); // partner,List(orders)
-
-    HashMap<Order,DeliveryPartner> revPairMap = new HashMap<>(); // reverse of pariMap for faster referal of oder to parnter
+    Map<String,Order> orderMap=new HashMap<>();
+    Map<String,DeliveryPartner> deliveryPartnerMap=new HashMap<>();
+    Map<String, List<String>> map=new HashMap<>();
+    List<String> list;
 
     public void addOrder(Order order){
         orderMap.put(order.getId(),order);
     }
 
-    public void addDeliveryPartner(String deliveryPartner){
-        partnerMap.put(deliveryPartner,new DeliveryPartner(deliveryPartner));
+    public void addPartner(String id){
+        deliveryPartnerMap.put(id,new DeliveryPartner(id));
     }
 
-    public void addOrderPartnerPair(String orderId, String partnerId){
-        DeliveryPartner deliveryPartner = partnerMap.get(partnerId);
-        Order order = orderMap.get(orderId);
-        if(!pairMap.containsKey(deliveryPartner)){
-            pairMap.put(deliveryPartner,new ArrayList<>());
+    public void addOrderPartnerPair(String oid,String pid){
+        if(map.containsKey(pid)){
+            map.get(pid).add(oid);
         }
-        List<Order> list = pairMap.get(deliveryPartner);
-        list.add(order);
-        deliveryPartner.setNumberOfOrders(deliveryPartner.getNumberOfOrders()+1);
-        revPairMap.put(order,deliveryPartner);
+        else{
+            list=new ArrayList<>();
+            list.add(oid);
+            map.put(pid,list);
+        }
     }
 
-    public Order getOrderById(String orderId){
-        return orderMap.getOrDefault(orderId,null);
+    public Order getOrderById(String id){
+        return orderMap.get(id);
     }
 
-    public DeliveryPartner getPartnerById(String partnerId){
-        return partnerMap.get(partnerId);
+    public DeliveryPartner getPartnerById(String id){
+        return deliveryPartnerMap.get(id);
     }
 
-    public int getOrderCountByPartnerId(String partnerId){
-        return partnerMap.get(partnerId).getNumberOfOrders();
+    public int getOrderCountByPartnerId(String id){
+        return map.get(id).size();
     }
 
-    public List<Order> getOrdersByPartnerId(String partnerId){
-        return pairMap.getOrDefault(partnerMap.get(partnerId),null);
+    public List<String> getOrdersByPartnerId(String id){
+        return map.get(id);
     }
 
-    public List<Order> getAllOrders(){
-        List<Order> orderList = new ArrayList<>();
-        for(Order order:orderMap.values()) orderList.add(order);
-        return orderList;
+    public List<String> getAllOrders(){
+        List<String> orderlist=new ArrayList<>();
+        for(String id:orderMap.keySet()) orderlist.add(id);
+        return orderlist;
     }
 
     public int getCountOfUnassignedOrders(){
-        return orderMap.size() - revPairMap.size();
+        int ordercount=orderMap.size();
+        int partnercount=0;
+        for(String id:map.keySet()){
+            partnercount+=map.get(id).size();
+        }
+        return ordercount-partnercount;
     }
 
-    public int getOrdersLeftAfterGivenTimeByPartnerId(String deliveryTime, String partnerId){
-        String[] list = deliveryTime.split(":");
-        int time = (Integer.parseInt(list[0])*60) + Integer.parseInt(list[1]);
-        int count = 0;
-        for(Order order:pairMap.get(partnerMap.get(partnerId))) if(order.getDeliveryTime() > time) count++;
-        return count;
+    public int getOrdersLeftAfterGivenTimeByPartnerId(String time,String id){
+        int t=0;
+        list=map.get(id);
+        for(String i:list){
+            if(orderMap.get(i).getDeliveryTime()>(Integer.valueOf(time.substring(0,2))*60+Integer.valueOf(time.substring(3,5))))
+                t++;
+        }
+        return t;
     }
 
-    public String getLastDeliveryTimeByPartnerId(String partnerId){
-        List<Order> orderList = pairMap.get(partnerMap.get(partnerId));
-        int largestTime = 0;
-        for(Order order:orderList) largestTime = Math.max(order.getDeliveryTime(),largestTime);
-        int hour = largestTime / 60;
-        int min = largestTime % 60;
-        String time = "";
-        if(hour<10) time = time+"0";
-        time = time+String.valueOf(hour)+":";
-        if(min<10) time = time+"0";
-        time = time+String.valueOf(min);
-        return time;
+    public String getLastDeliveryTimeByPartnerId(String id){
+        String order=map.get(id).get(map.get(id).size()-1);
+        return order;
     }
 
-    public void deletePartnerById(String partnerId){
-        DeliveryPartner partner = partnerMap.get(partnerId);
-        partnerMap.remove(partnerId);
-        List<Order> orderList = pairMap.get(partner);
-        pairMap.remove(partner);
-        for(Order order:orderList) revPairMap.remove(order);
+    public void deletePartnerById(String id){
+        map.remove(id);
+        deliveryPartnerMap.remove(id);
     }
 
-    public void deleteOrderById(String orderId){
-        Order order = orderMap.get(orderId);
-        orderMap.remove(orderId);
-        DeliveryPartner partner = revPairMap.getOrDefault(order,null);
-        if(partner != null) {
-            revPairMap.remove(order);
-            List<Order> orderList = pairMap.get(partner);
-            partner.setNumberOfOrders(partner.getNumberOfOrders()-1);
-            orderList.remove(order);
+    public void deleteOrderById(String id){
+        orderMap.remove(id);
+        for(String i:map.keySet()){
+            for(int j=0;j<map.get(i).size();j++){
+                if(map.get(i).get(j)==id){
+                    map.get(i).remove(j);
+                    return;
+                }
+            }
         }
     }
 }

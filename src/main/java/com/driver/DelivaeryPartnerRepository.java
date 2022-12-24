@@ -1,11 +1,8 @@
-package com.driver.Repository;
+package com.driver;
 
-import com.driver.Model.DeliveryPartner;
-import com.driver.Model.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
-import javax.servlet.http.Part;
 import java.util.*;
 
 
